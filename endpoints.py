@@ -116,6 +116,11 @@ class KeywordRankTrackerRequest(BaseModel):
     email: str = Field(..., description="Email address of the keyword tracker subscriber")
     domain: str = Field(..., description="Target domain link to search for (e.g., https://www.evtechinstitute.com)")
     keyword: List[str] = Field(..., description="List of keyword strings to monitor in Google Search")
+    gl: Optional[str] = Field("in", description="Country code (e.g., 'in' for India, 'us' for US)")
+    hl: Optional[str] = Field("en", description="Language code (e.g., 'en' for English)")
+    google_domain: Optional[str] = Field("google.co.in", description="Google search domain (e.g., 'google.co.in', 'google.com')")
+    location: Optional[str] = Field(None, description="Detailed physical location (e.g., 'Vasai,Maharashtra,India')")
+
 
 # --- ROUTE 2: Track Keyword SERP rankings and update DB ---
 @rankings_router.post("/serp-rankings", summary="Track SERP Rank via Keywords and Update Database")
@@ -196,14 +201,19 @@ async def track_keyword_serp_rankings(
         for kw in keywords:
             logger.info(f"Tracking keyword '{kw}' for domain '{target_domain_raw}' ({target_domain_clean})")
             
-            # Formulate query params and path
+            # Formulate query params and path (dynamically localizing results via gl, hl, domain, and location)
             # (Note: we use num=50 to fetch the first 50 organic results as requested)
             params = {
                 "q": kw,
-                "domain": "google.com",
+                "domain": item.google_domain or "google.co.in",
+                "gl": item.gl or "in",
+                "hl": item.hl or "en",
                 "deviceType": "desktop",
                 "num": 50
             }
+            if item.location:
+                params["location"] = item.location
+                
             encoded_params = urllib.parse.urlencode(params)
             request_path = f"/scrape/google/serp?{encoded_params}"
             
@@ -247,7 +257,7 @@ async def track_keyword_serp_rankings(
                 organic_results = serp_data.get("organicResults", [])
                 
                 # Check if target domain is present in organic results (top 50 positions)
-                found_position = 0 # 0 means not found
+                found_position = 51 # Default to 51 (representing not found / rank > 50)
                 matched_link = None
                 
                 for r in organic_results:
@@ -267,7 +277,7 @@ async def track_keyword_serp_rankings(
                         break
                 
                 # 3. Handle DB persistence (Insert or Update serp_rank_tracker)
-                previous_pos = 0
+                previous_pos = 51 # Default to 51 if not found previously
                 
                 # Check if a tracker record already exists
                 check_query = """
@@ -276,12 +286,15 @@ async def track_keyword_serp_rankings(
                     WHERE domain = %s AND keyword = %s
                 """
                 cursor.execute(check_query, (target_domain_raw, kw))
-
                 db_record = cursor.fetchone()
                 
                 if db_record:
                     # Update existing record
                     previous_pos = db_record[0]
+                    # Ensure backward compatibility: convert any old 0 value to 51
+                    if previous_pos == 0:
+                        previous_pos = 51
+                        
                     update_query = """
                         UPDATE serp_rank_tracker
                         SET previous_position = %s,
@@ -292,18 +305,17 @@ async def track_keyword_serp_rankings(
                     cursor.execute(update_query, (previous_pos, found_position, target_domain_raw, kw))
                     logger.info(f"Updated rank tracker for '{kw}': Prev={previous_pos}, Curr={found_position}")
                 else:
-                    # Insert new record (previous_position defaults to 0)
+                    # Insert new record (previous_position defaults to 51)
                     insert_query = """
                         INSERT INTO serp_rank_tracker (domain, keyword, current_position, previous_position)
                         VALUES (%s, %s, %s, %s)
                     """
-                    cursor.execute(insert_query, (target_domain_raw, kw, found_position, 0))
+                    cursor.execute(insert_query, (target_domain_raw, kw, found_position, 51))
                     logger.info(f"Inserted new rank tracker for '{kw}': Position={found_position}")
-
                 
                 domain_results.append({
                     "keyword": kw,
-                    "status": "FOUND" if found_position > 0 else "NOT_FOUND",
+                    "status": "FOUND" if found_position <= 50 else "NOT_FOUND",
                     "current_position": found_position,
                     "previous_position": previous_pos,
                     "matched_url": matched_link
