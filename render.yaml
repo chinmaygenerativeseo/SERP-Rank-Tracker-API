@@ -1,12 +1,8 @@
 services:
   - type: web
     name: serp-rank-tracker-api
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    runtime: docker # Changed from python to docker to support ODBC Driver 18 dependencies
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
       - key: DB_SERVER
         sync: false # User will fill this in Render Dashboard
       - key: DB_PORT
