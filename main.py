@@ -4,7 +4,7 @@ import sys
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-import pyodbc
+import pymssql
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
 import uvicorn
@@ -26,12 +26,11 @@ async def lifespan(app: FastAPI):
     # 1. Establish and verify SQL Server connection before starting the server
     persistent_conn = None
     try:
-        conn_str = db_manager.build_connection_string()
         logger.info(f"Connecting to SQL Server database '{db_manager.database}'...")
         
-        # Synchronous pyodbc connection run in an executor to avoid blocking the event loop
+        # Synchronous pymssql connection run in an executor to avoid blocking the event loop
         loop = asyncio.get_running_loop()
-        persistent_conn = await loop.run_in_executor(None, pyodbc.connect, conn_str)
+        persistent_conn = await loop.run_in_executor(None, db_manager.get_raw_connection)
         
         # Test connection validity
         cursor = persistent_conn.cursor()

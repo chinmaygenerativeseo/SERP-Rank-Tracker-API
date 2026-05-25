@@ -72,12 +72,13 @@ async def get_api_configurations(
     params = []
     
     if status:
-        where_clauses.append("status = ?")
+        where_clauses.append("status = %s")
         params.append(status)
         
     if provider:
-        where_clauses.append("api_provider LIKE ?")
+        where_clauses.append("api_provider LIKE %s")
         params.append(f"%{provider}%")
+
         
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)
@@ -272,9 +273,10 @@ async def track_keyword_serp_rankings(
                 check_query = """
                     SELECT current_position 
                     FROM serp_rank_tracker 
-                    WHERE domain = ? AND keyword = ?
+                    WHERE domain = %s AND keyword = %s
                 """
                 cursor.execute(check_query, (target_domain_raw, kw))
+
                 db_record = cursor.fetchone()
                 
                 if db_record:
@@ -282,10 +284,10 @@ async def track_keyword_serp_rankings(
                     previous_pos = db_record[0]
                     update_query = """
                         UPDATE serp_rank_tracker
-                        SET previous_position = ?,
-                            current_position = ?,
+                        SET previous_position = %s,
+                            current_position = %s,
                             updated_at = GETDATE()
-                        WHERE domain = ? AND keyword = ?
+                        WHERE domain = %s AND keyword = %s
                     """
                     cursor.execute(update_query, (previous_pos, found_position, target_domain_raw, kw))
                     logger.info(f"Updated rank tracker for '{kw}': Prev={previous_pos}, Curr={found_position}")
@@ -293,10 +295,11 @@ async def track_keyword_serp_rankings(
                     # Insert new record (previous_position defaults to 0)
                     insert_query = """
                         INSERT INTO serp_rank_tracker (domain, keyword, current_position, previous_position)
-                        VALUES (?, ?, ?, ?)
+                        VALUES (%s, %s, %s, %s)
                     """
                     cursor.execute(insert_query, (target_domain_raw, kw, found_position, 0))
                     logger.info(f"Inserted new rank tracker for '{kw}': Position={found_position}")
+
                 
                 domain_results.append({
                     "keyword": kw,
