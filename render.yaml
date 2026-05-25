@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: serp-rank-tracker-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DB_SERVER
+        sync: false # User will fill this in Render Dashboard
+      - key: DB_PORT
+        value: "1433"
+      - key: DB_DATABASE
+        sync: false # User will fill this in Render Dashboard
+      - key: DB_USE_WINDOWS_AUTH
+        value: "false"
+      - key: DB_USERNAME
+        sync: false # User will fill this in Render Dashboard
+      - key: DB_PASSWORD
+        sync: false # User will fill this in Render Dashboard
+      - key: DB_TRUST_SERVER_CERTIFICATE
+        value: "yes"

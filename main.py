@@ -484,8 +484,18 @@ async def query_test(
 def start_server():
     """
     Launches Uvicorn server programmatically.
+    Dynamically binds to the correct HOST and PORT for Render/Production deployment.
     """
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # Render sets the PORT environment variable. We default to 8000 for local development.
+    port = int(os.getenv("PORT", 8000))
+    # Render requires binding to 0.0.0.0 so external traffic can route to the container.
+    host = os.getenv("HOST", "0.0.0.0" if os.getenv("RENDER") else "127.0.0.1")
+    # Disable reload in production/Render to optimize performance
+    reload = os.getenv("RENDER") is None
+    
+    logger.info(f"Starting server on {host}:{port} (reload={reload})")
+    uvicorn.run("main:app", host=host, port=port, reload=reload)
 
 if __name__ == "__main__":
     start_server()
+

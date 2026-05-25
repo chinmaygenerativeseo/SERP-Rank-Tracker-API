@@ -24,6 +24,7 @@ A robust, production-ready, and high-performance **FastAPI** web API integrated 
 ├── connection.py         # DB connection builder, driver scanner, context managers, and db dependencies
 ├── endpoints.py          # Custom FastAPI Router file containing configs and SERP rank tracker endpoints
 ├── main.py               # FastAPI App, Lifespan controller, server home UI, and server runner
+├── render.yaml           # Deployment blueprint configuration for Render
 ├── schema.sql            # Database schema and seed script for local SQL Server initialization
 ├── requirements.txt      # PyPI project dependencies
 ├── test_connection.py    # Diagnostic script for quick terminal checks
@@ -60,7 +61,7 @@ DB_PASSWORD=your-password
 
 ---
 
-## 💻 Running the Application
+## 💻 Running the Application Locally
 
 ### 1. Run Diagnostic Script (Optional)
 To verify database access quickly via the terminal without running the API server:
@@ -80,6 +81,35 @@ Once running, open your browser and navigate to:
 
 ---
 
+## ☁️ Deploying to Render
+
+Render runs a **Linux (Ubuntu)** environment. The error `python.exe: command not found` occurs because Windows executables (`.exe`) are not compatible with Linux commands.
+
+To deploy your API successfully on Render:
+
+### Method A: Using Render Blueprints (Recommended)
+Our codebase includes a `render.yaml` blueprint. 
+1. In the Render Dashboard, click **New** -> **Blueprint**.
+2. Connect your Git repository.
+3. Render will automatically parse `render.yaml`, set up the Python environment, configure your environment variables, and configure the correct build/start commands.
+
+### Method B: Manual Web Service Setup
+If configuring manually as a **Web Service**:
+1. **Environment**: Select `Python` as the runtime.
+2. **Build Command**: Set this to:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Start Command**: Set this to (Notice **no** `.exe` extension!):
+   ```bash
+   python main.py
+   ```
+4. **Environment Variables**: Add your database credentials (`DB_SERVER`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, etc.) under the service's **Environment** tab.
+
+*(Note: The `main.py` script automatically detects when it is running on Render and binds to `0.0.0.0` and the correct dynamic `$PORT` provided by Render's routing infrastructure).*
+
+---
+
 ## 🔌 API Endpoints Reference
 
 Exposed from [endpoints.py](file:///d:/Projects/GenerativeSSO/Python_KeyWordRankTracker/endpoints.py):
@@ -95,32 +125,6 @@ Exposed from [endpoints.py](file:///d:/Projects/GenerativeSSO/Python_KeyWordRank
       "email": "k.kargutkar26@gmail.com",
       "domain": "https://www.evtechinstitute.com",
       "keyword": ["ev tech institute", "best", "institute"]
-    }
-  ]
-  ```
-
-  **Response JSON Structure**:
-  ```json
-  [
-    {
-      "email": "k.kargutkar26@gmail.com",
-      "domain": "https://www.evtechinstitute.com",
-      "keyword_tracking": [
-        {
-          "keyword": "ev tech institute",
-          "status": "FOUND",
-          "current_position": 1,
-          "previous_position": 0,
-          "matched_url": "https://www.evtechinstitute.com/"
-        },
-        {
-          "keyword": "best",
-          "status": "NOT_FOUND",
-          "current_position": 0,
-          "previous_position": 0,
-          "matched_url": null
-        }
-      ]
     }
   ]
   ```
